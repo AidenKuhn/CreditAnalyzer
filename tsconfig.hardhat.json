@@ -1,0 +1,35 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@contracts/*": ["contracts/*"],
+      "@test/*": ["test/*"],
+      "@types/*": ["types/*"]
+    }
+  },
+  "include": [
+    "hardhat.config.ts",
+    "scripts/**/*",
+    "test/**/*",
+    "contracts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "artifacts",
+    "cache",
+    "dist",
+    "src"
+  ]
+}

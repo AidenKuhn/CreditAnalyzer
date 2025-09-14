@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ZamaConfig",
+  "sourceName": "@fhevm/solidity/config/ZamaConfig.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601757603a9081601d823930815050f35b600080fdfe600080fdfea2646970667358221220276d9cfa285fd34be369096506605b2a4bac67e61b8d3ee50ff94ff5f19e20f564736f6c63430008180033",
+  "deployedBytecode": "0x600080fdfea2646970667358221220276d9cfa285fd34be369096506605b2a4bac67e61b8d3ee50ff94ff5f19e20f564736f6c63430008180033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
