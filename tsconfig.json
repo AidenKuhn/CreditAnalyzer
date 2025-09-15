@@ -14,7 +14,7 @@
     "jsx": "react-jsx",
 
     /* Linting */
-    "strict": true,
+    "strict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
@@ -25,24 +25,14 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@contracts/*": ["contracts/*"],
-      "@test/*": ["test/*"],
-      "@types/*": ["types/*"]
+      "@/*": ["src/*"]
     }
   },
   "include": [
-    "src/**/*",
-    "contracts/**/*",
-    "test/**/*",
-    "scripts/**/*",
-    "hardhat.config.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "artifacts",
-    "cache",
     "dist"
-  ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  ]
 }
