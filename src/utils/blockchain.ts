@@ -198,7 +198,7 @@ export class TransactionExecutor {
         ...(gasEstimate.gasPrice && !gasEstimate.maxFeePerGas ? { gasPrice: gasEstimate.gasPrice } : {})
       })
 
-      console.log('✅ Transaction sent:', tx.hash)
+      console.log('✅ Transaction sent:', (tx as any).hash)
       console.log('📋 Transaction details:', {
         to: tx.to,
         value: tx.value?.toString() || '0',
@@ -210,7 +210,7 @@ export class TransactionExecutor {
 
       // Track the transaction
       const receipt = await this.transactionTracker.trackTransaction(
-        tx.hash,
+        (tx as any).hash,
         onStatusUpdate
       )
 

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "compile": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "ethers": "6.15.0",
@@ -19,7 +22,7 @@
     "@types/react-dom": "18.2.22",
     "@vitejs/plugin-react": "4.2.1",
     "typescript": "5.2.2",
-    "vite": "5.2.0",
+    "vite": "^5.4.20",
     "vite-plugin-node-polyfills": "^0.22.0",
     "buffer": "^6.0.3",
     "process": "^0.11.10"
@@ -40,6 +43,14 @@
       "last 1 safari version"
     ]
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AidenKuhn/CreditAnalyzer.git"
+  },
+  "homepage": "https://credit-analyzer-zama.vercel.app",
+  "bugs": {
+    "url": "https://github.com/AidenKuhn/CreditAnalyzer/issues"
+  },
   "keywords": [
     "fhe",
     "privacy",
@@ -50,8 +61,13 @@
     "ethereum",
     "react",
     "typescript",
-    "vite"
+    "vite",
+    "vercel",
+    "web3"
   ],
-  "author": "Credit Analyzer",
+  "author": {
+    "name": "Credit Analyzer Team",
+    "url": "https://github.com/AidenKuhn"
+  },
   "license": "MIT"
 }
