@@ -3,19 +3,10 @@
     "composite": true,
     "skipLibCheck": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "Node",
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "resolveJsonModule": true,
     "strict": true,
-    "noEmit": false
+    "types": ["node"]
   },
-  "include": [
-    "vite.config.ts",
-    "hardhat.config.ts",
-    "scripts/**/*",
-    "test/**/*"
-  ]
+  "include": ["vite.config.ts", "hardhat.config.js", "scripts/**/*", "test/**/*"]
 }
