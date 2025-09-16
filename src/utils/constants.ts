@@ -2,15 +2,21 @@
 export const CONTRACT_ADDRESS = "0x40AAb767720Bc4BED4765b0F93B67bbBb6A98f51"
 
 export const CONTRACT_ABI = [
-  "function submitCreditData(uint32, uint32, uint8, uint8, uint8) external",
+  // FHE encrypted functions - need to handle as bytes
+  "function submitCreditData(bytes, bytes, bytes, bytes, bytes) external",
   "function evaluateCreditScore(address) external", 
   "function requestLoanApproval() external",
-  "function getCreditScore(address) external view returns (uint8)",
-  "function getLoanApprovalStatus(address) external view returns (bool)",
+  
+  // View functions for checking status
   "function hasSubmittedCreditData(address) external view returns (bool)",
   "function isCreditEvaluated(address) external view returns (bool)",
   "function getEvaluationStats() external view returns (uint256)",
-  "function updateCreditData(uint32, uint32, uint8, uint8, uint8) external",
+  
+  // Encrypted result functions
+  "function getEncryptedCreditScore(address) external view returns (bytes)",
+  "function getEncryptedLoanApproval(address) external view returns (bytes)",
+  
+  // Events
   "event CreditDataSubmitted(address indexed user, uint256 timestamp)",
   "event CreditEvaluated(address indexed user, uint256 timestamp)",
   "event LoanApprovalRequested(address indexed user, uint256 timestamp)"

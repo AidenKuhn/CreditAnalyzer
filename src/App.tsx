@@ -13,6 +13,7 @@ import TransactionExplanation from './components/TransactionExplanation'
 import { useContract } from './hooks/useContract'
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from './utils/constants'
 import { TransactionExecutor } from './utils/blockchain'
+import { encryptCreditData, initializeFHE, getFHEStatus } from './utils/fhe'
 import type { CreditData, UserStatus } from './utils/types'
 import type { TransactionStatus as TxStatus } from './utils/blockchain'
 
@@ -183,16 +184,39 @@ function App() {
     try {
       setLoading(true)
       clearTransactionStatus()
-      showMessage('Preparing transaction...')
+      showMessage('Initializing encryption...')
 
       console.log('🚀 Starting credit data submission transaction')
       console.log('📋 Validated data:', { income, debt, age, creditHistory, paymentHistory })
 
-      // Execute transaction with full tracking and retry
+      // Initialize FHE if not already done
+      showMessage('Setting up homomorphic encryption...')
+      await initializeFHE()
+      
+      // Encrypt the credit data
+      showMessage('Encrypting your financial data...')
+      const encryptedData = await encryptCreditData({
+        income,
+        debt,
+        age,
+        creditHistory,
+        paymentHistory
+      })
+      
+      console.log('🔐 Data encrypted successfully')
+      showMessage('Preparing encrypted transaction...')
+
+      // Execute transaction with encrypted parameters
       await transactionExecutor.executeTransaction(
         contract,
         'submitCreditData',
-        [income, debt, age, creditHistory, paymentHistory],
+        [
+          encryptedData.encryptedIncome,
+          encryptedData.encryptedDebt,
+          encryptedData.encryptedAge,
+          encryptedData.encryptedCreditHistory,
+          encryptedData.encryptedPaymentHistory
+        ],
         (status) => {
           console.log('📊 Transaction status update:', status)
           setTransactionStatus(status)
@@ -202,7 +226,7 @@ function App() {
           } else if (status.status === 'confirming') {
             showMessage(`Transaction confirming... (${status.confirmations} confirmations)`)
           } else if (status.status === 'confirmed') {
-            showMessage('Credit data successfully submitted to blockchain! 🟢')
+            showMessage('Encrypted credit data successfully submitted to blockchain! 🟢')
           } else if (status.status === 'failed') {
             showMessage(status.error || 'Transaction failed', 'error')
           }
