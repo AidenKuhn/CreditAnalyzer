@@ -1,9 +1,9 @@
 // Contract configuration
-export const CONTRACT_ADDRESS = "0x40AAb767720Bc4BED4765b0F93B67bbBb6A98f51"
+export const CONTRACT_ADDRESS = "0x55F4A793FD9B9A39a1b17cD23310D0761EE33CCA"
 
 export const CONTRACT_ABI = [
-  // FHE encrypted functions - need to handle as bytes
-  "function submitCreditData(bytes, bytes, bytes, bytes, bytes) external",
+  // For testing: try with the exact function signature from Solidity
+  "function submitCreditData(bytes32, bytes32, bytes32, bytes32, bytes32) external",
   "function evaluateCreditScore(address) external", 
   "function requestLoanApproval() external",
   
@@ -12,9 +12,9 @@ export const CONTRACT_ABI = [
   "function isCreditEvaluated(address) external view returns (bool)",
   "function getEvaluationStats() external view returns (uint256)",
   
-  // Encrypted result functions
-  "function getEncryptedCreditScore(address) external view returns (bytes)",
-  "function getEncryptedLoanApproval(address) external view returns (bytes)",
+  // Encrypted result functions  
+  "function getEncryptedCreditScore(address) external view returns (bytes32)",
+  "function getEncryptedLoanApproval(address) external view returns (bytes32)",
   
   // Events
   "event CreditDataSubmitted(address indexed user, uint256 timestamp)",
