@@ -98,6 +98,7 @@ export class GasEstimator {
   ): Promise<GasEstimate> {
     try {
       console.log(`⛽ Estimating gas for ${methodName}...`)
+      console.log('📝 Arguments for estimation:', args)
       
       // Get current gas price
       const feeData = await this.provider.getFeeData()
@@ -107,17 +108,38 @@ export class GasEstimator {
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? ethers.formatUnits(feeData.maxPriorityFeePerGas, 'gwei') : 'null'
       })
 
-      // Estimate gas limit
-      const gasLimit = await contract[methodName].estimateGas(...args)
-      console.log(`📊 Estimated gas limit: ${gasLimit.toString()}`)
+      // Try gas estimation with error handling
+      let gasLimit: bigint
+      try {
+        gasLimit = await contract[methodName].estimateGas(...args)
+        console.log(`📊 Estimated gas limit: ${gasLimit.toString()}`)
+      } catch (estimationError: any) {
+        console.warn(`⚠️ Gas estimation failed, trying fallback methods:`, estimationError.message)
+        
+        // Try with staticCall first to check if the transaction would succeed
+        try {
+          await contract[methodName].staticCall(...args)
+          console.log('✅ Static call succeeded, using fallback gas limit')
+          gasLimit = BigInt(300000) // Higher fallback for complex operations
+        } catch (staticError: any) {
+          console.error(`❌ Static call also failed:`, staticError.message)
+          throw new Error(`Contract call would fail: ${staticError.message}`)
+        }
+      }
 
-      // Add 20% buffer to gas limit
-      const bufferedGasLimit = (gasLimit * BigInt(120)) / BigInt(100)
+      // Add 50% buffer to gas limit for safety
+      const bufferedGasLimit = (gasLimit * BigInt(150)) / BigInt(100)
       
       // Calculate estimated cost
       let gasPrice = feeData.gasPrice || BigInt(0)
       let maxFeePerGas = feeData.maxFeePerGas
       let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
+
+      // Fallback gas prices if not available
+      if (!gasPrice && !maxFeePerGas) {
+        gasPrice = BigInt(ethers.parseUnits('20', 'gwei'))
+        maxFeePerGas = gasPrice
+      }
 
       // Use legacy gas price if EIP-1559 not available
       if (!maxFeePerGas && gasPrice > BigInt(0)) {
@@ -140,11 +162,14 @@ export class GasEstimator {
     } catch (error: any) {
       console.error(`❌ Gas estimation failed for ${methodName}:`, error)
       
-      // Return default values if estimation fails
+      // Return safe default values if estimation fails
+      const defaultGasPrice = BigInt(ethers.parseUnits('25', 'gwei'))
       return {
-        gasLimit: BigInt(200000), // Default gas limit
-        gasPrice: BigInt(ethers.parseUnits('20', 'gwei')), // 20 gwei default
-        estimatedCost: '0.004' // Approximate default
+        gasLimit: BigInt(400000), // Higher default gas limit
+        gasPrice: defaultGasPrice,
+        maxFeePerGas: defaultGasPrice,
+        maxPriorityFeePerGas: BigInt(ethers.parseUnits('2', 'gwei')),
+        estimatedCost: '0.01' // Conservative default
       }
     }
   }
@@ -170,79 +195,119 @@ export class TransactionExecutor {
     options: {
       confirmations?: number
       timeout?: number
+      retries?: number
     } = {}
   ): Promise<TransactionReceipt> {
-    const { confirmations = 1, timeout = 300000 } = options // 5 minute timeout
+    const { confirmations = 1, timeout = 300000, retries = 1 } = options // 5 minute timeout, 1 retry
 
-    try {
-      console.log(`🚀 Executing transaction: ${methodName}`)
-      console.log('📝 Arguments:', args)
+    let lastError: any = null
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`🔄 Retry attempt ${attempt}/${retries} for ${methodName}`)
+          // Wait a bit before retry
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
 
-      // Estimate gas first
-      const gasEstimate = await this.gasEstimator.estimateContractCall(contract, methodName, args)
-      console.log('⛽ Gas estimate:', gasEstimate)
+        console.log(`🚀 Executing transaction: ${methodName} (attempt ${attempt + 1})`)
+        console.log('📝 Arguments:', args)
 
-      onStatusUpdate({
-        status: 'pending',
-        confirmations: 0
-      })
+        // Estimate gas first
+        const gasEstimate = await this.gasEstimator.estimateContractCall(contract, methodName, args)
+        console.log('⛽ Gas estimate:', gasEstimate)
 
-      // Execute the transaction
-      console.log('📤 Sending transaction to blockchain...')
-      
-      const tx: ContractTransaction = await contract[methodName](...args, {
-        gasLimit: gasEstimate.gasLimit,
-        maxFeePerGas: gasEstimate.maxFeePerGas,
-        maxPriorityFeePerGas: gasEstimate.maxPriorityFeePerGas,
-        // Legacy gas price fallback
-        ...(gasEstimate.gasPrice && !gasEstimate.maxFeePerGas ? { gasPrice: gasEstimate.gasPrice } : {})
-      })
+        onStatusUpdate({
+          status: 'pending',
+          confirmations: 0
+        })
 
-      console.log('✅ Transaction sent:', (tx as any).hash)
-      console.log('📋 Transaction details:', {
-        to: tx.to,
-        value: tx.value?.toString() || '0',
-        gasLimit: tx.gasLimit?.toString() || 'unknown',
-        gasPrice: tx.gasPrice?.toString(),
-        maxFeePerGas: tx.maxFeePerGas?.toString(),
-        nonce: tx.nonce
-      })
+        // Prepare transaction options with safe fallbacks
+        const txOptions: any = {
+          gasLimit: gasEstimate.gasLimit
+        }
 
-      // Track the transaction
-      const receipt = await this.transactionTracker.trackTransaction(
-        (tx as any).hash,
-        onStatusUpdate
-      )
+        // Use EIP-1559 if available, otherwise use legacy
+        if (gasEstimate.maxFeePerGas && gasEstimate.maxPriorityFeePerGas) {
+          txOptions.maxFeePerGas = gasEstimate.maxFeePerGas
+          txOptions.maxPriorityFeePerGas = gasEstimate.maxPriorityFeePerGas
+        } else if (gasEstimate.gasPrice) {
+          txOptions.gasPrice = gasEstimate.gasPrice
+        }
 
-      console.log('🎉 Transaction completed successfully!')
-      return receipt
+        // Execute the transaction
+        console.log('📤 Sending transaction to blockchain...')
+        console.log('⚙️ Transaction options:', {
+          gasLimit: txOptions.gasLimit?.toString(),
+          gasPrice: txOptions.gasPrice?.toString(),
+          maxFeePerGas: txOptions.maxFeePerGas?.toString(),
+          maxPriorityFeePerGas: txOptions.maxPriorityFeePerGas?.toString()
+        })
+        
+        const tx: ContractTransaction = await contract[methodName](...args, txOptions)
 
-    } catch (error: any) {
-      console.error(`❌ Transaction execution failed for ${methodName}:`, error)
-      
-      // Parse error message for user-friendly display
-      let userMessage = error.message
+        console.log('✅ Transaction sent:', (tx as any).hash)
+        console.log('📋 Transaction details:', {
+          to: tx.to,
+          value: tx.value?.toString() || '0',
+          gasLimit: tx.gasLimit?.toString() || 'unknown',
+          gasPrice: tx.gasPrice?.toString(),
+          maxFeePerGas: tx.maxFeePerGas?.toString(),
+          nonce: tx.nonce
+        })
 
-      if (error.code === 4001) {
-        userMessage = 'Transaction cancelled by user'
-      } else if (error.code === -32603) {
-        userMessage = 'Transaction failed - insufficient funds or contract error'
-      } else if (error.message?.includes('insufficient funds')) {
-        userMessage = 'Insufficient ETH balance for gas fees'
-      } else if (error.message?.includes('user rejected')) {
-        userMessage = 'Transaction rejected by user'
-      } else if (error.message?.includes('execution reverted')) {
-        userMessage = 'Contract execution failed - check your data'
+        // Track the transaction
+        const receipt = await this.transactionTracker.trackTransaction(
+          (tx as any).hash,
+          onStatusUpdate
+        )
+
+        console.log('🎉 Transaction completed successfully!')
+        return receipt
+
+      } catch (error: any) {
+        lastError = error
+        console.error(`❌ Transaction execution failed for ${methodName} (attempt ${attempt + 1}):`, error)
+        
+        // Don't retry for certain errors
+        if (error.code === 4001 || // User rejected
+            error.message?.includes('user rejected') ||
+            error.message?.includes('cancelled by user')) {
+          break // Don't retry user cancellations
+        }
+        
+        if (attempt === retries) {
+          break // Last attempt, will throw error below
+        }
       }
-
-      onStatusUpdate({
-        status: 'failed',
-        confirmations: 0,
-        error: userMessage
-      })
-
-      throw new Error(userMessage)
     }
+
+    // Parse error message for user-friendly display
+    let userMessage = lastError.message
+
+    if (lastError.code === 4001) {
+      userMessage = 'Transaction cancelled by user'
+    } else if (lastError.code === -32603) {
+      userMessage = 'Transaction failed - insufficient funds or contract error'
+    } else if (lastError.message?.includes('insufficient funds')) {
+      userMessage = 'Insufficient ETH balance for gas fees'
+    } else if (lastError.message?.includes('user rejected')) {
+      userMessage = 'Transaction rejected by user'
+    } else if (lastError.message?.includes('execution reverted')) {
+      userMessage = 'Contract execution failed - check your data'
+    } else if (lastError.message?.includes('missing revert data')) {
+      userMessage = 'Contract call failed - please check your input data and try again'
+    } else if (lastError.message?.includes('CALL_EXCEPTION')) {
+      userMessage = 'Contract call exception - please verify your data is correct'
+    }
+
+    onStatusUpdate({
+      status: 'failed',
+      confirmations: 0,
+      error: userMessage
+    })
+
+    throw new Error(userMessage)
   }
 }
 
